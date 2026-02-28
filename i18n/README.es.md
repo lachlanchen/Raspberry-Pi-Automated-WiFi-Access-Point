@@ -1,6 +1,8 @@
 [English](../README.md) · [العربية](README.ar.md) · [Español](README.es.md) · [Français](README.fr.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Tiếng Việt](README.vi.md) · [中文 (简体)](README.zh-Hans.md) · [中文（繁體）](README.zh-Hant.md) · [Deutsch](README.de.md) · [Русский](README.ru.md)
 
 
+[![LazyingArt banner](https://github.com/lachlanchen/lachlanchen/raw/main/figs/banner.png)](https://github.com/lachlanchen/lachlanchen/blob/main/figs/banner.png)
+
 # Raspberry-Pi-Automated-WiFi-Access-Point
 
 ![License: GPL-3.0](https://img.shields.io/badge/License-GPLv3-blue.svg)
@@ -8,24 +10,37 @@
 ![Network: WiFi AP + NAT](https://img.shields.io/badge/Network-AP%20%2B%20NAT-2ea44f)
 ![Shell: POSIX sh](https://img.shields.io/badge/Shell-POSIX%20sh-4EAA25)
 ![State: Scripted Setup](https://img.shields.io/badge/State-Interactive%20Script-orange)
+![Config: NAT Routed AP](https://img.shields.io/badge/Config-NAT%20Routed%20AP-2b6cb0)
 
-Un script automatizado para configurar un punto de acceso WiFi en Raspberry Pi. Convierte tu Pi en un punto de acceso que reenvía el tráfico a través del puerto Ethernet. En esencia, este script transforma tu Raspberry Pi en un router WiFi.
+Un script automatizado de configuración de punto de acceso WiFi para Raspberry Pi. Configura `wlan0` como AP y enruta el tráfico de clientes a través de `eth0` usando NAT.
 
-## 🌐 Resumen
+> Convierte una Raspberry Pi en un AP Wi‑Fi enrutado fiable con un único script guiado.
 
-Este repositorio proporciona un único script interactivo de shell, `setup.sh`, que configura una Raspberry Pi como punto de acceso inalámbrico enrutado:
+## 🧩 Snapshot
 
-- Los clientes WiFi se conectan a `wlan0`
-- La Raspberry Pi reenvía el tráfico a `eth0`
-- Se configura NAT con `iptables`
-- `dnsmasq` proporciona DHCP/DNS
-- `hostapd` proporciona el servicio de AP
+| Área | Detalles |
+| --- | --- |
+| Alcance del proyecto | Automatización de punto de acceso Raspberry Pi basado en Raspbian/Debian |
+| Subred AP predeterminada | `10.20.1.1/24` |
+| Rango de concesión DHCP | `10.20.1.5` - `10.20.1.100` |
+| Valores predeterminados de Wi‑Fi | `hw_mode=g`, canal `2`, país `US` |
+| Archivos configurados | `/etc/dhcpcd.conf`, `/etc/hostapd/hostapd.conf`, `/etc/dnsmasq.conf`, `/etc/sysctl.d/routed-ap.conf` |
 
-Valores de red AP predeterminados que crea el script:
+---
+
+## 🌐 Visión general
+
+Este repositorio contiene un único script interactivo de shell, `setup.sh`, que convierte una Raspberry Pi en un router Wi‑Fi. Instala y configura los paquetes y servicios necesarios para un punto de acceso enrutado:
+
+- **DHCP/DNS** mediante `dnsmasq`
+- **daemon de AP** mediante `hostapd`
+- **NAT persistente y reenvío de paquetes** mediante `iptables`/`netfilter-persistent`
+
+Valores de red de punto de acceso predeterminados creados por el script:
 
 | Ajuste | Valor |
 | --- | --- |
-| IP de la interfaz AP | `10.20.1.1/24` |
+| IP de interfaz AP | `10.20.1.1/24` |
 | Rango DHCP | `10.20.1.5` - `10.20.1.100` |
 | Nombre local del AP | `rpi.ap` |
 | Modo WiFi | 2.4 GHz (`hw_mode=g`) |
@@ -34,19 +49,19 @@ Valores de red AP predeterminados que crea el script:
 
 ## ✨ Características
 
-- Configuración interactiva (solicita SSID y contraseña WPA2)
-- Instalación automática de paquetes:
+- Configuración interactiva con solicitudes de SSID y contraseña WPA2 (con confirmación)
+- Instala dependencias básicas:
   - `dnsmasq`
   - `hostapd`
   - `netfilter-persistent`
   - `iptables-persistent`
-- Aprovisionamiento de red AP en `wlan0`
-- Habilitación del reenvío IPv4
-- Regla NAT persistente para el enlace ascendente en `eth0`
-- Configuración de `hostapd` y `dnsmasq` generada automáticamente
-- Habilita `hostapd.service` para el arranque
+- Configura red AP estática en `wlan0`
+- Habilita reenvío IPv4 en `/etc/sysctl.d/routed-ap.conf`
+- Añade regla NAT/masquerade persistente para el tráfico saliente por `eth0`
+- Genera automáticamente `/etc/dnsmasq.conf` y `/etc/hostapd/hostapd.conf`
+- Habilita e inicia `hostapd.service` al arranque
 
-## 🗂️ Estructura del Proyecto
+## 🗂️ Estructura del proyecto
 
 ```text
 Raspberry-Pi-Automated-WiFi-Access-Point/
@@ -56,30 +71,25 @@ Raspberry-Pi-Automated-WiFi-Access-Point/
 └── i18n/
 ```
 
-## ✅ Requisitos Previos
+## ✅ Requisitos previos
 
-- Raspberry Pi con Raspberry Pi OS (o una imagen compatible basada en Debian)
-- Adaptador WiFi funcional como `wlan0`
-- Enlace ascendente por Ethernet disponible como `eth0`
-- Privilegios de `sudo`
-- Acceso a Internet para `apt-get install`
+- Raspberry Pi con Raspberry Pi OS (o imagen compatible basada en Debian)
+- Un adaptador Wi‑Fi funcional expuesto como `wlan0`
+- Una conexión ascendente por Ethernet en `eth0`
+- Acceso a Internet para la instalación de paquetes
+- Privilegios `sudo`
 
-Suposición: el script usa nombres de interfaz clásicos (`wlan0`, `eth0`). Si tu sistema usa nombres diferentes, actualiza el script/la configuración en consecuencia.
+Supuesto: el comportamiento del script asume nombres de interfaz clásicos (`wlan0` y `eth0`). Los nombres no estándar requieren ajuste manual tras la configuración.
 
 ## 📦 Instalación
-
-Clona el repositorio:
 
 ```bash
 git clone https://github.com/arm358/Raspberry-Pi-Automated-WiFi-Access-Point
 cd Raspberry-Pi-Automated-WiFi-Access-Point
-```
-
-Haz que el script sea ejecutable:
-
-```bash
 sudo chmod +x setup.sh
 ```
+
+---
 
 ## 🚀 Uso
 
@@ -89,40 +99,38 @@ Ejecuta el script de configuración:
 ./setup.sh
 ```
 
-Luego:
+Flujo interactivo típico:
 
-1. Introduce el nombre de red (SSID)
-2. Introduce la contraseña
+1. Introduce el SSID
+2. Introduce la contraseña WPA2
 3. Confirma la contraseña
-4. Reinicia
+4. Reinicia la Pi
 
 ## 📋 Instrucciones
 
-(Flujo de trabajo original preservado como base canónica.)
-
-1. Clona el repositorio usando git  
+1. Clona este repositorio:
    `git clone https://github.com/arm358/Raspberry-Pi-Automated-WiFi-Access-Point`
-2. Cambia al directorio del repositorio  
+2. Cambia de directorio:
    `cd Raspberry-Pi-Automated-WiFi-Access-Point`
-3. Haz que el script sea ejecutable  
+3. Haz el script ejecutable:
    `sudo chmod +x setup.sh`
-4. Ejecuta el script  
+4. Ejecuta la configuración:
    `./setup.sh`
-5. Introduce nombre de red, contraseña y confirmación de contraseña
-6. Reinicia
+5. Introduce SSID, contraseña y confirmación de contraseña
+6. Reinicia la Raspberry Pi
 
 ## ⚙️ Configuración
 
-El script escribe/actualiza estos archivos:
+El script escribe/actualiza estos archivos del sistema:
 
 | Archivo | Propósito |
 | --- | --- |
 | `/etc/dhcpcd.conf` | Añade configuración AP estática para `wlan0` |
-| `/etc/sysctl.d/routed-ap.conf` | Establece `net.ipv4.ip_forward=1` |
-| `/etc/dnsmasq.conf` | Configuración DHCP/DNS del AP (el original se mueve a `/etc/dnsmasq.conf.orig`) |
-| `/etc/hostapd/hostapd.conf` | SSID, seguridad y ajustes de radio |
+| `/etc/sysctl.d/routed-ap.conf` | Habilita reenvío IPv4 mediante `net.ipv4.ip_forward=1` |
+| `/etc/dnsmasq.conf` | Configura DHCP/DNS para clientes AP (la copia anterior se mueve a `/etc/dnsmasq.conf.orig`) |
+| `/etc/hostapd/hostapd.conf` | Guarda SSID y ajustes de radio/seguridad WLAN |
 
-### Ajustes clave de hostapd usados
+Ajustes clave predeterminados de `hostapd`:
 
 ```ini
 country_code=US
@@ -138,20 +146,21 @@ wpa_key_mgmt=WPA-PSK
 rsn_pairwise=CCMP
 ```
 
-Para personalizar los valores predeterminados de radio/seguridad tras la configuración, edita:
+Para personalizar valores predeterminados, edita:
 
 - `/etc/hostapd/hostapd.conf`
+- `/etc/dnsmasq.conf` (si necesitas cambiar el comportamiento DNS/DHCP)
+- `/etc/dhcpcd.conf` (para subredes/direcciones)
 
 ## 📝 Notas
 
-1. Esto creará una red WiFi de 2.4GHz en el canal 2
-2. El código de país está configurado como Estados Unidos
-3. Para cambiar estos ajustes, edita el archivo `/etc/hostapd/hostapd.conf`
-4. `i18n/` existe en el repositorio; los archivos README enlazados por idioma pueden añadirse/actualizarse allí con el tiempo.
+1. Este script crea por defecto un SSID de 2.4GHz en el canal `2`.
+2. El código de país por defecto es `US`.
+3. `i18n/` contiene variantes traducidas del README enlazadas desde el selector de idioma superior.
 
 ## 🔍 Ejemplos
 
-Conecta un dispositivo a tu SSID configurado y luego verifica el enrutamiento desde la Pi:
+Inspecciona la configuración de AP y reenvío:
 
 ```bash
 ip addr show wlan0
@@ -160,47 +169,55 @@ sudo iptables -t nat -S
 systemctl status hostapd
 ```
 
-Detalles de acceso esperados del lado AP tras una ejecución correcta:
+Detalles esperados del lado AP tras un setup exitoso:
 
-- IP AP de la Raspberry Pi: `10.20.1.1`
-- Nombre DNS local: `rpi.ap`
+- IP del punto de acceso: `10.20.1.1`
+- Nombre DNS local del AP: `rpi.ap`
 
-## 🛠️ Notas de Desarrollo
+## 🛠️ Notas de desarrollo
 
-- La lógica principal está en `setup.sh`
-- Este repositorio actualmente no tiene suite de pruebas, pipeline de CI ni manifiesto de paquetes
-- El script es operativo e imperativo (escribe directamente en la configuración del sistema)
-- Volver a ejecutarlo puede añadir líneas duplicadas en algunos archivos (en particular `/etc/dhcpcd.conf`)
+- La implementación principal está centralizada en `setup.sh`.
+- Este repositorio no incluye suite de pruebas, CI ni manifiesto de paquetes.
+- El script escribe directamente archivos de configuración del sistema y no es completamente idempotente en todos los archivos (por ejemplo, `/etc/dhcpcd.conf` puede acumular líneas repetidas en ejecuciones repetidas).
 
-## 🧰 Solución de Problemas
+---
 
-| Problema | Verificar / Solución |
+## 🧰 Solución de problemas
+
+| Incidencia | Verificar / Arreglar |
 | --- | --- |
-| `Passwords do not match` | Vuelve a ejecutar `./setup.sh` e introduce valores coincidentes |
-| AP no visible después de la configuración | Reinicia la Pi y luego verifica `systemctl status hostapd` |
-| Sin Internet en clientes WiFi | Confirma que el enlace Ethernet tiene Internet, verifica la regla NAT con `sudo iptables -t nat -S`, verifica el reenvío con `cat /etc/sysctl.d/routed-ap.conf` |
-| Problemas de inicio de servicios | `sudo journalctl -u hostapd -b` y `sudo journalctl -u dnsmasq -b` |
+| `Passwords do not match` | Vuelve a ejecutar `./setup.sh` y vuelve a introducir valores coincidentes |
+| El AP no es visible | Reinicia y revisa `systemctl status hostapd` |
+| Los clientes no tienen acceso a internet | Verifica el enlace Ethernet, inspecciona NAT con `sudo iptables -t nat -S`, confirma ajustes de reenvío en `/etc/sysctl.d/routed-ap.conf` |
+| Problemas al iniciar servicios | Ejecuta `sudo journalctl -u hostapd -b` y `sudo journalctl -u dnsmasq -b` |
 
-## 🧭 Hoja de Ruta
+## 🧭 Hoja de ruta
 
-- Añadir lógica de configuración idempotente (re-ejecuciones seguras)
-- Añadir script de desinstalación/restablecimiento para restaurar la configuración previa
-- Añadir soporte para sobrescribir interfaces (sistemas no `wlan0`/`eth0`)
-- Añadir validaciones automáticas y CI
-- Añadir traducciones completadas en `i18n/`
+- Hacer la configuración idempotente para reruns más seguros.
+- Añadir ruta de desinstalación/restablecimiento para recuperar el estado de red previo.
+- Añadir soporte de sobreescritura de interfaz para sistemas no `wlan0`/`eth0`.
+- Añadir comprobaciones automáticas y CI opcional.
+- Mantener traducciones bajo `i18n/`.
 
 ## 🤝 Contribuir
 
-Se aceptan issues y pull requests.
+Se aceptan incidencias y pull requests.
 
-Al contribuir:
+Revisiones recomendadas de aportes:
 
-- Mantén comandos y documentación alineados con el comportamiento real del script
-- Prueba en hardware Raspberry Pi real cuando cambies lógica de red
-- Documenta cualquier nuevo valor predeterminado (canales, subredes, servicios)
+- Mantén documentación y comandos alineados con el comportamiento real del script.
+- Prueba cambios de red en hardware Raspberry Pi real.
+- Documenta cualquier cambio de valores por defecto y efectos secundarios.
 
 ## 📄 Licencia
 
-Este proyecto está licenciado bajo GNU General Public License v3.0.
+Este proyecto está licenciado bajo la GNU General Public License v3.0.
 
 Consulta [LICENSE](../LICENSE).
+
+
+## ❤️ Support
+
+| Donate | PayPal | Stripe |
+| --- | --- | --- |
+| [![Donate](https://camo.githubusercontent.com/24a4914f0b42c6f435f9e101621f1e52535b02c225764b2f6cc99416926004b7/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f446f6e6174652d4c617a79696e674172742d3045413545393f7374796c653d666f722d7468652d6261646765266c6f676f3d6b6f2d6669266c6f676f436f6c6f723d7768697465)](https://chat.lazying.art/donate) | [![PayPal](https://camo.githubusercontent.com/d0f57e8b016517a4b06961b24d0ca87d62fdba16e18bbdb6aba28e978dc0ea21/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f50617950616c2d526f6e677a686f754368656e2d3030343537433f7374796c653d666f722d7468652d6261646765266c6f676f3d70617970616c266c6f676f436f6c6f723d7768697465)](https://paypal.me/RongzhouChen) | [![Stripe](https://camo.githubusercontent.com/1152dfe04b6943afe3a8d2953676749603fb9f95e24088c92c97a01a897b4942/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f5374726970652d446f6e6174652d3633354246463f7374796c653d666f722d7468652d6261646765266c6f676f3d737472697065266c6f676f436f6c6f723d7768697465)](https://buy.stripe.com/aFadR8gIaflgfQV6T4fw400) |

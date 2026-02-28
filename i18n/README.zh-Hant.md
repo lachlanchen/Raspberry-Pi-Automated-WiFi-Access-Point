@@ -1,6 +1,8 @@
 [English](../README.md) · [العربية](README.ar.md) · [Español](README.es.md) · [Français](README.fr.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Tiếng Việt](README.vi.md) · [中文 (简体)](README.zh-Hans.md) · [中文（繁體）](README.zh-Hant.md) · [Deutsch](README.de.md) · [Русский](README.ru.md)
 
 
+[![LazyingArt banner](https://github.com/lachlanchen/lachlanchen/raw/main/figs/banner.png)](https://github.com/lachlanchen/lachlanchen/blob/main/figs/banner.png)
+
 # Raspberry-Pi-Automated-WiFi-Access-Point
 
 ![License: GPL-3.0](https://img.shields.io/badge/License-GPLv3-blue.svg)
@@ -8,45 +10,58 @@
 ![Network: WiFi AP + NAT](https://img.shields.io/badge/Network-AP%20%2B%20NAT-2ea44f)
 ![Shell: POSIX sh](https://img.shields.io/badge/Shell-POSIX%20sh-4EAA25)
 ![State: Scripted Setup](https://img.shields.io/badge/State-Interactive%20Script-orange)
+![Config: NAT Routed AP](https://img.shields.io/badge/Config-NAT%20Routed%20AP-2b6cb0)
 
-這是一個用於 Raspberry Pi 的自動化 WiFi 存取點（Access Point）設定腳本。它會將你的 Pi 設定為可透過乙太網路埠轉送流量的 AP。簡單來說，這個腳本會把你的 Raspberry Pi 變成一台 WiFi 路由器。
+這是一個用於 Raspberry Pi 的自動化 Wi‑Fi 存取點設定腳本。它會將 `wlan0` 設定為 AP，並透過 NAT 將用戶端流量經由 `eth0` 轉送。
+
+> 透過一個引導式腳本，將 Raspberry Pi 變成穩定的路由式 Wi‑Fi AP。
+
+## 🧩 快照
+
+| 項目 | 說明 |
+| --- | --- |
+| 專案範圍 | 基於 Raspbian/Debian 的 Raspberry Pi 存取點自動化 |
+| 預設 AP 子網 | `10.20.1.1/24` |
+| DHCP 租約範圍 | `10.20.1.5` - `10.20.1.100` |
+| Wi‑Fi 無線電預設值 | `hw_mode=g`、通道 `2`、國家代碼 `US` |
+| 腳本化檔案 | `/etc/dhcpcd.conf`、`/etc/hostapd/hostapd.conf`、`/etc/dnsmasq.conf`、`/etc/sysctl.d/routed-ap.conf` |
+
+---
 
 ## 🌐 概覽
 
-此儲存庫提供一個互動式 shell 腳本 `setup.sh`，可將 Raspberry Pi 設定為具路由功能的無線存取點：
+本儲存庫包含一個互動式 shell 腳本 `setup.sh`，可讓 Raspberry Pi 變成 Wi‑Fi 路由器。它會安裝並設定路由型接入點所需的套件與服務：
 
-- WiFi 用戶端連線到 `wlan0`
-- Raspberry Pi 將流量轉送到 `eth0`
-- 使用 `iptables` 設定 NAT
-- 由 `dnsmasq` 提供 DHCP/DNS
-- 由 `hostapd` 提供 AP 服務
+- 透過 `dnsmasq` 提供 **DHCP/DNS**
+- 透過 `hostapd` 提供 **AP 服務**
+- 透過 `iptables`/`netfilter-persistent` 提供持續的 NAT 與封包轉送
 
-腳本建立的預設 AP 網路值：
+腳本建立的預設接入點網路參數如下：
 
-| 設定 | 值 |
+| 項目 | 值 |
 | --- | --- |
 | AP 介面 IP | `10.20.1.1/24` |
 | DHCP 範圍 | `10.20.1.5` - `10.20.1.100` |
-| AP 本機名稱 | `rpi.ap` |
-| WiFi 模式 | 2.4 GHz (`hw_mode=g`) |
-| 頻道 | `2` |
+| AP 本地域名 | `rpi.ap` |
+| Wi-Fi 模式 | 2.4 GHz（`hw_mode=g`） |
+| 通道 | `2` |
 | 國家代碼 | `US` |
 
-## ✨ 功能
+## ✨ 功能特性
 
-- 互動式設定（會詢問 SSID 與 WPA2 密碼）
-- 自動安裝套件：
+- 互動式設定流程：輸入 SSID 與 WPA2 密碼（含再次確認）
+- 安裝核心相依套件：
   - `dnsmasq`
   - `hostapd`
   - `netfilter-persistent`
   - `iptables-persistent`
-- 在 `wlan0` 進行 AP 網路佈建
-- 啟用 IPv4 轉送
-- 針對 `eth0` 上游建立可持久化的 NAT 規則
-- 自動產生 `hostapd` 與 `dnsmasq` 設定
-- 啟用開機啟動的 `hostapd.service`
+- 在 `wlan0` 上設定靜態 AP 網路
+- 在 `/etc/sysctl.d/routed-ap.conf` 啟用 IPv4 轉送
+- 新增持續生效的 NAT/MASQUERADE 規則，將外送流量導向 `eth0`
+- 自動產生 `/etc/dnsmasq.conf` 與 `/etc/hostapd/hostapd.conf`
+- 開機時啟用並啟動 `hostapd.service`
 
-## 🗂️ 專案結構
+## 🗂️ 專案架構
 
 ```text
 Raspberry-Pi-Automated-WiFi-Access-Point/
@@ -56,73 +71,66 @@ Raspberry-Pi-Automated-WiFi-Access-Point/
 └── i18n/
 ```
 
-## ✅ 先決條件
+## ✅ 前置需求
 
-- 安裝 Raspberry Pi OS（或相容 Debian 系映像）的 Raspberry Pi
-- 可用的 WiFi 介面 `wlan0`
-- 可用的乙太網路上行介面 `eth0`
+- 執行 Raspberry Pi OS（或相容 Debian 衍生映像）的 Raspberry Pi
+- 可用的 Wi‑Fi 配接器，顯示為 `wlan0`
+- `eth0` 的乙太網路上行連線
+- 有可用的網際網路連線以便安裝套件
 - `sudo` 權限
-- 可供 `apt-get install` 使用的網際網路連線
 
-假設：腳本使用傳統介面命名（`wlan0`、`eth0`）。若你的系統使用不同名稱，請依實際情況更新腳本/設定。
+預設情境下，腳本行為假設介面名稱為傳統格式（`wlan0` 與 `eth0`）。若使用其他名稱，需在完成安裝後手動調整。
 
 ## 📦 安裝
-
-複製此儲存庫：
 
 ```bash
 git clone https://github.com/arm358/Raspberry-Pi-Automated-WiFi-Access-Point
 cd Raspberry-Pi-Automated-WiFi-Access-Point
-```
-
-賦予腳本執行權限：
-
-```bash
 sudo chmod +x setup.sh
 ```
 
+---
+
 ## 🚀 使用方式
 
-執行設定腳本：
+執行安裝腳本：
 
 ```bash
 ./setup.sh
 ```
 
-接著：
+典型的互動流程：
 
-1. 輸入網路名稱（SSID）
-2. 輸入密碼
+1. 輸入 SSID
+2. 輸入 WPA2 密碼
 3. 確認密碼
-4. 重新開機
+4. 重新開機 Raspberry Pi
 
-## 📋 操作步驟
+## 📋 操作說明
 
-（保留原始流程作為標準基準。）
-
-1. 使用 git 複製儲存庫  
+1. 複製此儲存庫：
    `git clone https://github.com/arm358/Raspberry-Pi-Automated-WiFi-Access-Point`
-2. 切換到儲存庫目錄  
+2. 切換目錄：
    `cd Raspberry-Pi-Automated-WiFi-Access-Point`
-3. 賦予腳本執行權限  
+3. 讓腳本可執行：
    `sudo chmod +x setup.sh`
-4. 執行腳本  
+4. 執行安裝：
    `./setup.sh`
-5. 輸入網路名稱、密碼與密碼確認
-6. 重新開機！
+5. 輸入 SSID、密碼與密碼確認
+6. 重新開機 Raspberry Pi
 
 ## ⚙️ 設定
 
-腳本會寫入/更新以下檔案：
+腳本會寫入或更新以下系統檔案：
 
 | 檔案 | 用途 |
 | --- | --- |
-| `/etc/dhcpcd.conf` | 新增 `wlan0` 的靜態 AP 設定 |
-| `/etc/sysctl.d/routed-ap.conf` | 設定 `net.ipv4.ip_forward=1` |
-| `/etc/dnsmasq.conf` | AP DHCP/DNS 設定（原始檔會移至 `/etc/dnsmasq.conf.orig`） |
-| `/etc/hostapd/hostapd.conf` | SSID、安全性與無線電參數設定 |
+| `/etc/dhcpcd.conf` | 為 `wlan0` 新增 AP 靜態設定 |
+| `/etc/sysctl.d/routed-ap.conf` | 透過 `net.ipv4.ip_forward=1` 啟用 IPv4 轉送 |
+| `/etc/dnsmasq.conf` | 為 AP 用戶端設定 DHCP/DNS（原檔將移至 `/etc/dnsmasq.conf.orig`） |
+| `/etc/hostapd/hostapd.conf` | 儲存 SSID 與 WLAN 無線電/安全性設定 |
 
-### 使用的關鍵 hostapd 參數
+主要 `hostapd` 預設值：
 
 ```ini
 country_code=US
@@ -138,20 +146,21 @@ wpa_key_mgmt=WPA-PSK
 rsn_pairwise=CCMP
 ```
 
-若要在設定後自訂無線電/安全性預設值，請編輯：
+如需自訂預設值，請編輯：
 
 - `/etc/hostapd/hostapd.conf`
+- `/etc/dnsmasq.conf`（若需調整 DNS/DHCP 行為）
+- `/etc/dhcpcd.conf`（調整子網與位址）
 
 ## 📝 注意事項
 
-1. 這會建立一個在頻道 2 上運作的 2.4GHz WiFi 網路
-2. 國家代碼設為美國
-3. 若要變更這些設定，請編輯 `/etc/hostapd/hostapd.conf`
-4. 儲存庫中已有 `i18n/`；其中連結的多語 README 會隨時間新增/更新。
+1. 此腳本預設會在通道 `2` 建立 2.4GHz SSID。
+2. 國家代碼預設為 `US`。
+3. `i18n/` 包含從頂部語系切換器連到的 README 翻譯版本。
 
 ## 🔍 範例
 
-將裝置連線到你設定的 SSID 後，可在 Pi 上驗證路由：
+檢查 AP 與轉送設定：
 
 ```bash
 ip addr show wlan0
@@ -160,47 +169,55 @@ sudo iptables -t nat -S
 systemctl status hostapd
 ```
 
-成功執行後，預期的 AP 端存取資訊：
+成功設定後 AP 端預期結果：
 
-- Raspberry Pi AP IP：`10.20.1.1`
-- 本機 DNS 名稱：`rpi.ap`
+- 接入點 IP：`10.20.1.1`
+- AP 本地 DNS 名稱：`rpi.ap`
 
-## 🛠️ 開發備註
+## 🛠️ 開發筆記
 
-- 主要邏輯位於 `setup.sh`
-- 此儲存庫目前沒有測試套件、CI 流程或套件清單
-- 腳本採用命令式操作，會直接寫入系統設定
-- 重複執行時，某些檔案可能會附加重複行（特別是 `/etc/dhcpcd.conf`）
+- 核心實作集中在 `setup.sh`。
+- 本儲存庫未提供測試套件、CI，亦未提供套件清單。
+- 腳本會直接寫入系統設定檔，且在全部檔案中不完全具備冪等性（例如 `/etc/dhcpcd.conf` 在重複執行時可能會累積重複行）。
 
-## 🧰 疑難排解
+---
+
+## 🧰 故障排除
 
 | 問題 | 檢查 / 修正 |
 | --- | --- |
-| `Passwords do not match` | 重新執行 `./setup.sh`，並輸入一致的值 |
-| 設定後看不到 AP | 重新啟動 Pi，然後檢查 `systemctl status hostapd` |
-| WiFi 用戶端無法上網 | 確認乙太網路上游可上網、用 `sudo iptables -t nat -S` 驗證 NAT 規則、用 `cat /etc/sysctl.d/routed-ap.conf` 驗證轉送設定 |
-| 服務啟動異常 | `sudo journalctl -u hostapd -b` 與 `sudo journalctl -u dnsmasq -b` |
+| `Passwords do not match` | 重新執行 `./setup.sh` 並重新輸入一致的值 |
+| 無法看到 AP | 重新開機後檢查 `systemctl status hostapd` |
+| 用戶端無法連網 | 檢查乙太網路上行鏈路，使用 `sudo iptables -t nat -S` 檢查 NAT，確認 `/etc/sysctl.d/routed-ap.conf` 中的轉送設定 |
+| 服務啟動異常 | 執行 `sudo journalctl -u hostapd -b` 與 `sudo journalctl -u dnsmasq -b` |
 
-## 🧭 路線圖
+## 🧭 發展藍圖
 
-- 新增可重複安全執行（idempotent）的設定邏輯
-- 新增解除安裝/重置腳本以還原先前設定
-- 新增介面覆寫支援（非 `wlan0`/`eth0` 系統）
-- 新增自動化驗證檢查與 CI
-- 在 `i18n/` 補齊已完成的翻譯
+- 讓設定流程更具冪等性，以便安全地重複執行。
+- 新增移除/重置流程，以還原先前的網路狀態。
+- 新增非 `wlan0`/`eth0` 系統的介面覆蓋支援。
+- 新增自動化冒煙測試並提供可選 CI。
+- 在 `i18n/` 下新增並維護更多語系翻譯。
 
 ## 🤝 貢獻
 
-歡迎提交 Issue 與 Pull Request。
+歡迎回報 issue 與提出 pull request。
 
-貢獻時請注意：
+建議的提交流程檢查：
 
-- 讓指令與文件內容與實際腳本行為一致
-- 涉及網路邏輯變更時，請在實體 Raspberry Pi 硬體上測試
-- 記錄任何新預設值（頻道、子網路、服務）
+- 讓文件與指令與實際腳本行為一致。
+- 在實體 Raspberry Pi 硬體上驗證網路變更。
+- 記錄任何預設值與副作用的變更。
 
 ## 📄 授權
 
-本專案採用 GNU General Public License v3.0 授權。
+本專案以 GNU 通用公共授權條款 v3.0 發布。
 
-請參閱 [LICENSE](LICENSE)。
+請見 [LICENSE](LICENSE)。
+
+
+## ❤️ Support
+
+| Donate | PayPal | Stripe |
+| --- | --- | --- |
+| [![Donate](https://camo.githubusercontent.com/24a4914f0b42c6f435f9e101621f1e52535b02c225764b2f6cc99416926004b7/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f446f6e6174652d4c617a79696e674172742d3045413545393f7374796c653d666f722d7468652d6261646765266c6f676f3d6b6f2d6669266c6f676f436f6c6f723d7768697465)](https://chat.lazying.art/donate) | [![PayPal](https://camo.githubusercontent.com/d0f57e8b016517a4b06961b24d0ca87d62fdba16e18bbdb6aba28e978dc0ea21/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f50617950616c2d526f6e677a686f754368656e2d3030343537433f7374796c653d666f722d7468652d6261646765266c6f676f3d70617970616c266c6f676f436f6c6f723d7768697465)](https://paypal.me/RongzhouChen) | [![Stripe](https://camo.githubusercontent.com/1152dfe04b6943afe3a8d2953676749603fb9f95e24088c92c97a01a897b4942/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f5374726970652d446f6e6174652d3633354246463f7374796c653d666f722d7468652d6261646765266c6f676f3d737472697065266c6f676f436f6c6f723d7768697465)](https://buy.stripe.com/aFadR8gIaflgfQV6T4fw400) |
